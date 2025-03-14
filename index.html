@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Card Punch Puzzle Generator</title>
+    <style>
+        #output { font-family:monospace;}
+    </style>
+</head>
+<body>
+
+<h2>The Input:</h2>
+<p>Each line is on a separate card.</p>
+<textarea id="message" rows="10" cols="80">It's just a jump to the left
+And then a step to the right
+With your hands on your hips
+You bring your knees in tight</textarea>
+
+<div>
+    Minimum size of the card in total characters:<br>
+    <input id="size" value="400">    
+</div>
+
+<div>
+    Character wrap on each card:<br>
+    <input id="wrap" value="25">    
+</div>
+
+<div>
+    Bold the message?<br>
+    <select id="bold">
+        <option value="true" selected>Yes</option>
+        <option value="false">No</option>
+    </select>  
+</div>
+
+<div>
+    <button id="generate">Generate!</button>
+</div>
+
+<h2>The Output:</h2>
+<p>Cut out each card and punch out each ■.</p>
+
+<div id="output"></div>
+<script>
+
+/*
+    THIS IS DIRTY CODE
+    There be dragons.
+    You've been warned. :-)
+    -Steve
+*/
+
+//Punch character
+let punch = '■';
+
+//Roll an N-sided die starting at 0
+function roll(n) {
+    return Math.floor(Math.random() * n);
+}
+
+//Actually generate the cards and spit them out
+function generate() {
+
+    //The cards to return
+    let cards = [];
+
+    //Original message - each line a different card
+    let original_message = document.querySelector('#message').value.replaceAll(" ","_");
+    let message = original_message;
+    message = message.toLowerCase().split('\n');
+
+    for (var m in message) {
+        message[m] = message[m].split("");
+        cards.push([]);
+    }
+
+    //Two kinds of padding:
+    //Nonsense -- to ensure that no alternate messages appear
+    let nonsense = `xq.1234567890_=-+%$'"`;
+    //And regular padding that can be any valid characters
+    let padding = 'abcdefghijklmnoprstuvwyz' + nonsense;
+
+    //Split them up unto arrays
+    nonsense = nonsense.split('');
+    padding = padding.split('');
+
+    /*
+        And the logic:
+
+        So while we have letters left:
+            Pick a line.
+            If there are letters left in the line:
+                Shift that letter.
+                Add a gap to this card.
+                Add that letter to the next card.
+                Add a space to every other card.
+        
+    */
+    //How many letters do we have to go?
+    var letters_left = original_message.length;
+
+    //Just in case things run away, bail out of the while loop at 1000
+    var bail = 1000; //Just to be safe
+
+    //And to ensure there isn't clumping, we can't choose the same line twice
+    var last_line_used = -1;
+
+    //And check if we're bolding
+    var bold = document.querySelector("#bold").value == "true";
+
+    //Main logic loop
+    //If there are letters left (or we're not bailing)
+    while (letters_left > 0 && bail > 0) {
+        //Select random line
+        let line = roll(message.length); console.log('Random: ', line);
+        //If we haven't used it before...
+        if (line != last_line_used) {
+            //Remember it
+            last_line_used = line;
+            //If there are letters left in the current line
+            if (message[line].length > 0) {
+                //Note we've used them
+                letters_left--;
+                //Shift one off
+                let letter = message[line].shift();
+                //Place it in its card
+                for (var c in cards) {
+                    //If it's on this card, note a punch
+                    if (c == line)
+                        cards[c].push(punch);
+                    //Write the letter on the next card
+                    else if (c == (line+1) % cards.length)
+                        cards[c].push(bold ? '<b>'+letter+'</b>' : letter);
+                    //Otherwise, put nonsense in that slot on all other cards
+                    else
+                        cards[c].push(nonsense[roll(nonsense.length)]);
+                }
+            }
+        }
+        //Make sure we'll bail
+        bail--;
+        //Log what's happening
+        console.log(letters_left, bail);
+    }
+
+    //Pad it out to a specified size
+    var full_size = parseInt(document.querySelector('#size').value); 
+    while (cards[0].length < full_size) {
+        let slot = roll(cards[0].length);
+        for (let c in cards) 
+            cards[c].splice(slot,0,padding[roll(padding.length)]);
+    }
+
+    //Wrap each card at specified number of characters/columns
+    var wrap = parseInt(document.querySelector('#wrap').value);
+    for (let i=0; i<cards[0].length; i+= wrap+1) {
+        for (let c in cards) 
+            cards[c].splice(i,0,'<br>');
+    }
+
+    //Log it to see if anything goes wrong.
+    console.log(message,cards);
+
+    //Clear the output
+    document.querySelector('#output').innerHTML = '';
+
+    //Write the output
+    for (var c in cards)
+        document.querySelector('#output').innerHTML += cards[c].join("&nbsp;") + "<br>";
+
+} //END generate()
+
+//Listen to the button
+document.querySelector('#generate').addEventListener('click',generate);
+
+</script>
+</body>
+</html>
